@@ -275,6 +275,7 @@ export class IORedisPubSubEngine<T>
     const iterator = {
       done: false,
       throw(e: any) {
+        nextDeferred = nextDeferred ?? pDefer<TT>()
         nextDeferred?.reject(e)
         return generator.throw(e)
       },
