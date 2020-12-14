@@ -3,6 +3,7 @@ import pDefer, { DeferredPromise } from 'p-defer'
 import BaseError from 'baseerr'
 import { EventEmitter } from 'events'
 import IORedis from 'ioredis'
+import PLazy from 'p-lazy'
 import PQueue from 'p-queue'
 import { PubSubEngine } from 'graphql-subscriptions'
 import assert from 'assert'
@@ -224,15 +225,15 @@ export class IORedisPubSubEngine<T>
 
   asyncIterator<TT = T>(
     triggers: string | string[],
-  ): AsyncIterableIterator<TT> {
+  ): AsyncIterableIterator<TT> & { done: boolean } {
     const triggerNames = Array.isArray(triggers) ? triggers : [triggers]
     const self = this
     let nextDeferred: DeferredPromise<TT> | null = null
+    let cancelPromise: Promise<never> | null = null
     let subIds: Array<number> | null = null
 
     async function* gen() {
       const payloads: TT[] = []
-
       try {
         const promises = triggerNames.map((triggerName) =>
           self.subscribe(triggerName, (payload) => {
@@ -258,6 +259,7 @@ export class IORedisPubSubEngine<T>
           while (payloads.length) {
             yield payloads.shift() as TT
           }
+          if (cancelPromise) await cancelPromise
           nextDeferred = nextDeferred ?? pDefer<TT>()
           const payload = await nextDeferred.promise
           yield payload
@@ -275,16 +277,23 @@ export class IORedisPubSubEngine<T>
     const iterator = {
       done: false,
       throw(e: any) {
-        nextDeferred = nextDeferred ?? pDefer<TT>()
-        nextDeferred?.reject(e)
+        if (nextDeferred) {
+          nextDeferred.reject(e)
+        } else {
+          cancelPromise = new PLazy((resolve, reject) => reject(e))
+        }
         return generator.throw(e)
       },
       next() {
         return generator.next()
       },
       return() {
-        nextDeferred = nextDeferred ?? pDefer<TT>()
-        nextDeferred.reject(new AbortError('aborted'))
+        const err = new AbortError('aborted')
+        if (nextDeferred) {
+          nextDeferred.reject(err)
+        } else {
+          cancelPromise = new PLazy((resolve, reject) => reject(err))
+        }
         return generator.return()
       },
       [Symbol.asyncIterator]() {

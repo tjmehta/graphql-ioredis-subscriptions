@@ -1,3 +1,7 @@
+# v1.0.5
+
+- [patch] fix use a lazy promise for return/throw race
+
 # v1.0.4
 
 - [patch] fix throw race condition with subscriptions start

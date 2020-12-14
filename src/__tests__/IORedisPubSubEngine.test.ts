@@ -612,6 +612,21 @@ describe('IORedisPubSubEngine', () => {
   })
 
   describe('asyncIterator', () => {
+    it('should unsubscribe even if returned immediately', async () => {
+      const opts = {
+        pub: createRedisMock(),
+        sub: createRedisMock(),
+        logger: console,
+      }
+      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const triggerName = 'triggerName'
+      const iterable = pubsub.asyncIterator<PayloadType>(triggerName)
+      const p = iterable.next()
+      await iterable.return()
+      await p
+      expect(iterable.done).toBe(true)
+    })
+
     it('should yield payloads for a triggerName', async () => {
       // create pub sub
       const opts = {
