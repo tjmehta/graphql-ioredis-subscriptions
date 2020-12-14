@@ -62,6 +62,7 @@ export class IORedisPubSubEngine<T>
     // initial state
     this.logger = options?.logger ?? console
     this.parser = options?.parser ?? JSON
+    if (options.pub === options.sub) throw new Error('pub cannot equal sub')
     this.pub = options.pub
     this.sub = options.sub
     this.counter = 0
