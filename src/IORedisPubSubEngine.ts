@@ -9,12 +9,12 @@ import assert from 'assert'
 
 const noop = () => {}
 
-class AbortError extends BaseError<{}> {}
-class PayloadParseError extends BaseError<{ payloadStr: string }> {}
-class ReceivedPayloadAfterUnsubscribeError extends BaseError<{
+export class AbortError extends BaseError<{}> {}
+export class PayloadParseError extends BaseError<{ payloadStr: string }> {}
+export class ReceivedPayloadAfterUnsubscribeError extends BaseError<{
   triggerName: string
 }> {}
-class UnsubscribeError extends BaseError<{
+export class UnsubscribeError extends BaseError<{
   id: number
   triggerName: string
   pattern: boolean
@@ -229,7 +229,6 @@ export class IORedisPubSubEngine<T>
     const self = this
     let nextDeferred: DeferredPromise<TT> | null = null
     let subIds: Array<number> | null = null
-    let cancelled = false
 
     async function* gen() {
       const payloads: TT[] = []
@@ -237,10 +236,10 @@ export class IORedisPubSubEngine<T>
       try {
         const promises = triggerNames.map((triggerName) =>
           self.subscribe(triggerName, (payload) => {
-            if (cancelled) {
+            if (iterator.done) {
               // should never happen..
               throw new ReceivedPayloadAfterUnsubscribeError(
-                'received payload after unsubscribe. should not happen.',
+                'received payload after unsubscribed. should not happen.',
                 { triggerName },
               )
             }
@@ -267,27 +266,30 @@ export class IORedisPubSubEngine<T>
         if (err instanceof AbortError) return
         throw err
       } finally {
-        cancelled = true
+        iterator.done = true
         subIds?.forEach((id) => self.unsubscribe(id))
       }
     }
 
-    const iterator = gen()
-
-    return {
+    const generator = gen()
+    const iterator = {
+      done: false,
       throw(e: any) {
-        return iterator.throw(e)
+        nextDeferred?.reject(e)
+        return generator.throw(e)
       },
       next() {
-        return iterator.next()
+        return generator.next()
       },
       return() {
         nextDeferred?.reject(new AbortError('aborted'))
-        return iterator.return()
+        return generator.return()
       },
       [Symbol.asyncIterator]() {
-        return iterator
+        return generator
       },
     }
+
+    return iterator
   }
 }

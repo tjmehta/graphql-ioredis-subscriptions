@@ -1,3 +1,8 @@
+# v1.0.2
+
+- [patch] add done property for debugging purposes
+- [patch] export error classes
+
 # v1.0.1
 
 - [patch] only unsubscribe/punsubscribe after all subscriptions for a triggerName/pattern are unsubscribed
