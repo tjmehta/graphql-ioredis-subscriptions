@@ -168,9 +168,10 @@ export class IORedisPubSubEngine<T>
     })
   }
 
-  async unsubscribe(id: number): Promise<void> {
+  async unsubscribe(id: number, debug?: string): Promise<void> {
     const subInfo = this.subInfoById[id] ?? {}
     const { triggerName, onMessage, pattern } = subInfo
+
     if (onMessage === noop) {
       this.logger.warn(
         'cannot unsubscribe from already unsubscribed subscription',
@@ -178,12 +179,18 @@ export class IORedisPubSubEngine<T>
       )
       return
     }
+    // check if already unsubscribed
+    if (triggerName == null) {
+      this.logger.warn('cannot unsubscribe from unknown subscription', { id })
+      return
+    }
+
     // clear listener immediately
     subInfo.onMessage = noop
     return this.queue(triggerName, async () => {
       const { triggerName, pattern } = this.subInfoById[id] ?? {}
       // check if already unsubscribed
-      if (!triggerName) {
+      if (triggerName == null) {
         this.logger.warn('cannot unsubscribe from unknown subscription', { id })
         return
       }
@@ -200,16 +207,16 @@ export class IORedisPubSubEngine<T>
               { id, triggerName, pattern },
             ),
       )
-      // unsubscribe
-      if (pattern) {
-        await this.sub.punsubscribe(triggerName)
-      } else {
-        await this.sub.unsubscribe(triggerName)
-      }
       // clean up active state
       delete this.subInfoById[id]
       activeSubs.delete(id)
       if (activeSubs.size === 0) {
+        // unsubscribe
+        if (pattern) {
+          await this.sub.punsubscribe(triggerName)
+        } else {
+          await this.sub.unsubscribe(triggerName)
+        }
         delete this.activeSubsByTrigger[triggerName]
       }
     })
