@@ -1,3 +1,7 @@
+# v1.0.4
+
+- [patch] fix throw race condition with subscriptions start
+
 # v1.0.3
 
 - [patch] fix return race condition with subscriptions start
