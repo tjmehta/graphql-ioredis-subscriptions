@@ -1,3 +1,7 @@
+# v1.0.3
+
+- [patch] fix return race condition with subscriptions start
+
 # v1.0.2
 
 - [patch] add done property for debugging purposes

@@ -282,7 +282,8 @@ export class IORedisPubSubEngine<T>
         return generator.next()
       },
       return() {
-        nextDeferred?.reject(new AbortError('aborted'))
+        nextDeferred = nextDeferred ?? pDefer<TT>()
+        nextDeferred.reject(new AbortError('aborted'))
         return generator.return()
       },
       [Symbol.asyncIterator]() {
