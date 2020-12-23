@@ -627,6 +627,32 @@ describe('IORedisPubSubEngine', () => {
       expect(iterable.done).toBe(true)
     })
 
+    it('should not get stuck on yielding same value forever', async () => {
+      // create pub sub
+      const opts = {
+        pub: createRedisMock(),
+        sub: createRedisMock(),
+        logger: console,
+      }
+      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const triggerName = 'triggerName'
+      const iterable = pubsub.asyncIterator<PayloadType>(triggerName)
+      setTimeout(() => {
+        opts.sub.emit('message', triggerName, JSON.stringify({ foo: 'one' }))
+        iterable.next()
+        iterable.next()
+        iterable.next()
+        opts.sub.emit('message', triggerName, JSON.stringify({ foo: 'one' }))
+        iterable.next()
+        opts.sub.emit('message', triggerName, JSON.stringify({ foo: 'one' }))
+        iterable.return()
+        opts.sub.emit('message', triggerName, JSON.stringify({ foo: 'one' }))
+      }, 100)
+      for await (let payload of iterable) {
+        console.log(payload)
+      }
+    })
+
     it('should yield payloads for a triggerName', async () => {
       // create pub sub
       const opts = {

@@ -35,9 +35,10 @@
     "typescript": "^3.9.3"
   },
   "dependencies": {
+    "abort-controller": "^3.0.0",
+    "abortable-generator": "^1.2.0",
     "baseerr": "^1.0.1",
     "p-defer": "^3.0.0",
-    "p-lazy": "^3.0.0",
     "p-queue": "^6.6.2"
   }
 }

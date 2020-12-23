@@ -3,9 +3,9 @@ import pDefer, { DeferredPromise } from 'p-defer'
 import BaseError from 'baseerr'
 import { EventEmitter } from 'events'
 import IORedis from 'ioredis'
-import PLazy from 'p-lazy'
 import PQueue from 'p-queue'
 import { PubSubEngine } from 'graphql-subscriptions'
+import abortable from 'abortable-generator'
 import assert from 'assert'
 
 const noop = () => {}
@@ -226,81 +226,41 @@ export class IORedisPubSubEngine<T>
   asyncIterator<TT = T>(
     triggers: string | string[],
   ): AsyncIterableIterator<TT> & { done: boolean } {
-    const triggerNames = Array.isArray(triggers) ? triggers : [triggers]
     const self = this
-    let nextDeferred: DeferredPromise<TT> | null = null
-    let cancelPromise: Promise<never> | null = null
-    let subIds: Array<number> | null = null
-
-    async function* gen() {
+    return abortable<TT>(async function* (raceAbort) {
+      const triggerNames = Array.isArray(triggers) ? triggers : [triggers]
       const payloads: TT[] = []
+      let nextDeferred: DeferredPromise<TT> | null = null
+
+      const subIds = []
       try {
-        const promises = triggerNames.map((triggerName) =>
-          self.subscribe(triggerName, (payload) => {
-            if (iterator.done) {
-              // should never happen..
-              throw new ReceivedPayloadAfterUnsubscribeError(
-                'received payload after unsubscribed. should not happen.',
-                { triggerName },
-              )
-            }
-            if (nextDeferred != null) {
+        // subscribe to triggerName(s)
+        for (let triggerName of triggerNames) {
+          let subId = await self.subscribe(triggerName, (payload) => {
+            if (nextDeferred) {
               nextDeferred.resolve((payload as any) as TT)
               nextDeferred = null
               return
             }
             payloads.push((payload as any) as TT)
-          }),
-        )
-
-        subIds = await Promise.all(promises)
-
+          })
+          subIds.push(subId)
+          await raceAbort()
+        }
+        // yield payloads
         while (true) {
           while (payloads.length) {
             yield payloads.shift() as TT
           }
-          if (cancelPromise) await cancelPromise
           nextDeferred = nextDeferred ?? pDefer<TT>()
-          const payload = await nextDeferred.promise
-          yield payload
+          yield raceAbort(nextDeferred.promise)
         }
       } catch (err) {
-        if (err instanceof AbortError) return
+        if (err.name === 'AbortError') return
         throw err
       } finally {
-        iterator.done = true
         subIds?.forEach((id) => self.unsubscribe(id))
       }
-    }
-
-    const generator = gen()
-    const iterator = {
-      done: false,
-      throw(e: any) {
-        if (nextDeferred) {
-          nextDeferred.reject(e)
-        } else {
-          cancelPromise = new PLazy((resolve, reject) => reject(e))
-        }
-        return generator.throw(e)
-      },
-      next() {
-        return generator.next()
-      },
-      return() {
-        const err = new AbortError('aborted')
-        if (nextDeferred) {
-          nextDeferred.reject(err)
-        } else {
-          cancelPromise = new PLazy((resolve, reject) => reject(err))
-        }
-        return generator.return()
-      },
-      [Symbol.asyncIterator]() {
-        return generator
-      },
-    }
-
-    return iterator
+    })()
   }
 }
