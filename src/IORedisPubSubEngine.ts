@@ -5,6 +5,7 @@ import { EventEmitter } from 'events'
 import IORedis from 'ioredis'
 import PQueue from 'p-queue'
 import { PubSubEngine } from 'graphql-subscriptions'
+import PullQueue from 'promise-pull-queue'
 import abortable from 'abortable-generator'
 import assert from 'assert'
 
@@ -228,32 +229,24 @@ export class IORedisPubSubEngine<T>
   ): AsyncIterableIterator<TT> & { done: boolean } {
     const self = this
     return abortable<TT>(async function* (raceAbort) {
-      const triggerNames = Array.isArray(triggers) ? triggers : [triggers]
-      const payloads: TT[] = []
-      let nextDeferred: DeferredPromise<TT> | null = null
-
       const subIds = []
       try {
+        const triggerNames = Array.isArray(triggers) ? triggers : [triggers]
+        const pullQueue = new PullQueue<TT>()
         // subscribe to triggerName(s)
         for (let triggerName of triggerNames) {
-          let subId = await self.subscribe(triggerName, (payload) => {
-            if (nextDeferred) {
-              nextDeferred.resolve((payload as any) as TT)
-              nextDeferred = null
-              return
-            }
-            payloads.push((payload as any) as TT)
+          let subId = await raceAbort(async (signal) => {
+            const subId = await self.subscribe(triggerName, (payload) => {
+              pullQueue.pushValue((payload as any) as TT)
+            })
+            if (signal.aborted) self.unsubscribe(subId).catch(() => {})
+            return subId
           })
           subIds.push(subId)
-          await raceAbort()
         }
         // yield payloads
         while (true) {
-          while (payloads.length) {
-            yield payloads.shift() as TT
-          }
-          nextDeferred = nextDeferred ?? pDefer<TT>()
-          yield raceAbort(nextDeferred.promise)
+          yield raceAbort((signal) => pullQueue.pull(signal))
         }
       } catch (err) {
         if (err.name === 'AbortError') return

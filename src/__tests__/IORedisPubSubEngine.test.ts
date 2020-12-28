@@ -674,8 +674,12 @@ describe('IORedisPubSubEngine', () => {
         }, 10)
       }, 10)
       const payloads = []
-      for await (let payload of iterable) {
-        payloads.push(payload)
+      try {
+        for await (let payload of iterable) {
+          payloads.push(payload)
+        }
+      } finally {
+        payloads.push('finally')
       }
       opts.sub.emit('message', triggerName, JSON.stringify({ foo: 'six' }))
       expect(payloads).toMatchInlineSnapshot(`
@@ -689,9 +693,7 @@ describe('IORedisPubSubEngine', () => {
           Object {
             "foo": "thr",
           },
-          Object {
-            "foo": "for",
-          },
+          "finally",
         ]
       `)
     })
@@ -721,8 +723,12 @@ describe('IORedisPubSubEngine', () => {
         }, 10)
       }, 10)
       const payloads = []
-      for await (let payload of iterable) {
-        payloads.push(payload)
+      try {
+        for await (let payload of iterable) {
+          payloads.push(payload)
+        }
+      } finally {
+        payloads.push('finally')
       }
       opts.sub.emit('message', triggerName1, JSON.stringify({ foo: 'six' }))
       opts.sub.emit('message', triggerName2, JSON.stringify({ foo: 'svn' }))
@@ -737,9 +743,7 @@ describe('IORedisPubSubEngine', () => {
           Object {
             "foo": "thr",
           },
-          Object {
-            "foo": "for",
-          },
+          "finally",
         ]
       `)
     })
