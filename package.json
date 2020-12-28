@@ -1,6 +1,6 @@
 {
   "name": "graphql-ioredis-subscriptions",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Description",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
