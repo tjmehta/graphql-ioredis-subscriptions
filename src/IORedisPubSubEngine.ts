@@ -226,6 +226,7 @@ export class IORedisPubSubEngine<T>
 
   asyncIterator<TT = T>(
     triggers: string | string[],
+    signal?: AbortSignal
   ): AsyncIterableIterator<TT> & { done: boolean } {
     const self = this
     return abortable<TT>(async function* (raceAbort) {
@@ -254,6 +255,6 @@ export class IORedisPubSubEngine<T>
       } finally {
         subIds?.forEach((id) => self.unsubscribe(id))
       }
-    })()
+    })(signal)
   }
 }
