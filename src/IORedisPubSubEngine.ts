@@ -129,8 +129,7 @@ export class IORedisPubSubEngine<T>
       })
       queue.onEmpty().then(() => {
         // note: not sure if this check is necessary
-        if (this.subQueues[triggerName] === queue)
-          delete this.subQueues[triggerName]
+        if (queue.size === 0) delete this.subQueues[triggerName]
       })
     }
 
