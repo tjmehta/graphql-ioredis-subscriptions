@@ -73,41 +73,45 @@ export class IORedisPubSubEngine<T>
     this.subQueues = {}
     // event handlers
     this.sub.on('message', (triggerName: string, payloadStr: string) => {
-      this.activeSubsByTrigger[triggerName]?.forEach((id) => {
+      const activeSubs = this.activeSubsByTrigger[triggerName]
+      if (!Boolean(activeSubs?.size)) return
+      let payload: T
+      try {
+        payload = this.parser.parse(payloadStr)
+      } catch (err) {
+        this.logger.error('message payload parse error', {
+          err: PayloadParseError.wrap(err, 'message payload parse error', {
+            payloadStr,
+          }),
+        })
+        return
+      }
+      activeSubs?.forEach((id) => {
         const { onMessage, pattern } = this.subInfoById[id] || {}
         if (onMessage == null || onMessage === noop) return
         if (pattern) return
-        let payload
-        try {
-          payload = this.parser.parse(payloadStr)
-        } catch (err) {
-          this.logger.error('message payload parse error', {
-            err: PayloadParseError.wrap(err, 'message payload parse error', {
-              payloadStr,
-            }),
-          })
-          return
-        }
         onMessage(payload)
       })
     })
     this.sub.on('pmessage', (triggerName: string, payloadStr: string) => {
+      const activeSubs = this.activeSubsByTrigger[triggerName]
+      if (!Boolean(activeSubs?.size)) return
+      let payload: T
+      try {
+        payload = this.parser.parse(payloadStr)
+      } catch (err) {
+        this.logger.error('message payload parse error', {
+          err: PayloadParseError.wrap(err, 'message payload parse error', {
+            payloadStr,
+          }),
+        })
+        return
+      }
       this.activeSubsByTrigger[triggerName]?.forEach((id) => {
         const { onMessage, pattern } = this.subInfoById[id] || {}
         // sanity check, shouldn't happen
         if (onMessage == null || onMessage === noop) return
         if (pattern === false) return
-        let payload
-        try {
-          payload = this.parser.parse(payloadStr)
-        } catch (err) {
-          this.logger.error('message payload parse error', {
-            err: PayloadParseError.wrap(err, 'message payload parse error', {
-              payloadStr,
-            }),
-          })
-          return
-        }
         onMessage(payload)
       })
     })
@@ -226,7 +230,7 @@ export class IORedisPubSubEngine<T>
 
   asyncIterator<TT = T>(
     triggers: string | string[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): AsyncIterableIterator<TT> & { done: boolean } {
     const self = this
     return abortable<TT>(async function* (raceAbort) {

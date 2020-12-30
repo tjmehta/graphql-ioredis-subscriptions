@@ -309,6 +309,18 @@ describe('IORedisPubSubEngine', () => {
               "err": [PayloadParseError: message payload parse error],
             },
           ],
+          Array [
+            "message payload parse error",
+            Object {
+              "err": [PayloadParseError: message payload parse error],
+            },
+          ],
+          Array [
+            "message payload parse error",
+            Object {
+              "err": [PayloadParseError: message payload parse error],
+            },
+          ],
         ]
       `)
     })
@@ -356,6 +368,12 @@ describe('IORedisPubSubEngine', () => {
       expect(onMessage).toHaveBeenCalledTimes(0)
       expect(opts.logger.error.mock.calls).toMatchInlineSnapshot(`
         Array [
+          Array [
+            "message payload parse error",
+            Object {
+              "err": [PayloadParseError: message payload parse error],
+            },
+          ],
           Array [
             "message payload parse error",
             Object {
