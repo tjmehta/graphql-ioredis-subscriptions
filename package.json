@@ -40,6 +40,6 @@
     "baseerr": "^1.0.1",
     "p-defer": "^3.0.0",
     "p-queue": "^6.6.2",
-    "promise-pull-queue": "^1.1.1"
+    "promise-pull-queue": "^1.1.4"
   }
 }
