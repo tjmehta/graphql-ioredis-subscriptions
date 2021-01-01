@@ -36,55 +36,55 @@ async function runBenchMarks(getBench) {
   // await runBenchMarks(() => {
   //   const TRIGGER = 'TRIGGER'
 
-  //   return new Benchmark()
-  //     .add(`old: getting results from 2 async iterators`, async () => {
-  //       const pubSub = new RedisPubSub({
-  //         publisher: pub,
-  //         subscriber: sub,
-  //       })
-  //       const items1 = pubSub.asyncIterator(TRIGGER)
-  //       const items2 = pubSub.asyncIterator(TRIGGER)
-  //       setTimeout(() => {
-  //         let i = 10
-  //         while (i > 0) {
-  //           pubSub.publish(TRIGGER, { i })
-  //           i--
-  //         }
-  //         setTimeout(() => items1.return(), 0)
-  //         setTimeout(() => items2.return(), 0)
-  //       }, 0)
-  //       for await (let i of items1) {
-  //         // console.log('NEW', i)
-  //       }
-  //       for await (let i of items2) {
-  //         // console.log('NEW', i)
-  //       }
-  //     })
-  //     .add(`new: getting results from 2 async iterators`, async () => {
-  //       const pubSub = new RedisPubSubEngine({
-  //         pub,
-  //         sub,
-  //       })
-  //       const items1 = pubSub.asyncIterator(TRIGGER)
-  //       const items2 = pubSub.asyncIterator(TRIGGER)
-  //       setTimeout(() => {
-  //         let i = 10
-  //         while (i > 0) {
-  //           pubSub.publish(TRIGGER, { i })
-  //           i--
-  //         }
-  //         setTimeout(() => items1.return(), 0)
-  //         setTimeout(() => items2.return(), 0)
-  //       }, 0)
-  //       for await (let i of items1) {
-  //         // console.log('NEW', i)
-  //       }
-  //       for await (let i of items2) {
-  //         // console.log('NEW', i)
-  //       }
-  //     })
-  //     .setRunsPerUnit(10)
-  // })
+    return new Benchmark()
+      .add(`old: getting results from 2 async iterators`, async () => {
+        const pubSub = new RedisPubSub({
+          publisher: pub,
+          subscriber: sub,
+        })
+        const items1 = pubSub.asyncIterator(TRIGGER)
+        const items2 = pubSub.asyncIterator(TRIGGER)
+        setTimeout(() => {
+          let i = 10
+          while (i > 0) {
+            pubSub.publish(TRIGGER, { i })
+            i--
+          }
+          setTimeout(() => items1.return(), 0)
+          setTimeout(() => items2.return(), 0)
+        }, 0)
+        for await (let i of items1) {
+          // console.log('NEW', i)
+        }
+        for await (let i of items2) {
+          // console.log('NEW', i)
+        }
+      })
+      .add(`new: getting results from 2 async iterators`, async () => {
+        const pubSub = new RedisPubSubEngine({
+          pub,
+          sub,
+        })
+        const items1 = pubSub.asyncIterator(TRIGGER)
+        const items2 = pubSub.asyncIterator(TRIGGER)
+        setTimeout(() => {
+          let i = 10
+          while (i > 0) {
+            pubSub.publish(TRIGGER, { i })
+            i--
+          }
+          setTimeout(() => items1.return(), 0)
+          setTimeout(() => items2.return(), 0)
+        }, 0)
+        for await (let i of items1) {
+          // console.log('NEW', i)
+        }
+        for await (let i of items2) {
+          // console.log('NEW', i)
+        }
+      })
+      .setRunsPerUnit(10)
+  })
   await runBenchMarks(() => {
     const TRIGGER = 'TRIGGER'
     const pub = new IORedis({
