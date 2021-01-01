@@ -1,10 +1,10 @@
-import { IORedisPubSubEngine } from './IORedisPubSubEngine'
+import { RedisPubSubEngine } from './RedisPubSubEngine'
 
 export {
   AbortError,
   PayloadParseError,
   ReceivedPayloadAfterUnsubscribeError,
   UnsubscribeError,
-} from './IORedisPubSubEngine'
+} from './RedisPubSubEngine'
 
-export default IORedisPubSubEngine
+export default RedisPubSubEngine

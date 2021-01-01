@@ -1,30 +1,17 @@
-import { EventEmitter } from 'events'
-import IORedisPubSubEngine from './../index'
+import RedisPubSubEngine from '../index'
+import createRedisMock from './test_utils/createRedisMock'
 import timeout from 'timeout-then'
-
-const createRedisMock = (realEE?: boolean) => {
-  class RedisMock extends EventEmitter {
-    publish = jest.fn()
-    subscribe = jest.fn()
-    psubscribe = jest.fn()
-    unsubscribe = jest.fn()
-    punsubscribe = jest.fn()
-  }
-  const mock = new RedisMock()
-  jest.spyOn(mock, 'on')
-  return mock
-}
 
 type PayloadType = { foo: number }
 
-describe('IORedisPubSubEngine', () => {
+describe('RedisPubSubEngine', () => {
   it('should create an instance', () => {
     const opts = {
       pub: createRedisMock(),
       sub: createRedisMock(),
     }
-    const pubsub = new IORedisPubSubEngine(opts as any)
-    expect(pubsub).toBeInstanceOf(IORedisPubSubEngine)
+    const pubsub = new RedisPubSubEngine(opts as any)
+    expect(pubsub).toBeInstanceOf(RedisPubSubEngine)
     expect(opts.pub.on).not.toHaveBeenCalled()
     expect(opts.sub.on).toHaveBeenCalledWith('message', expect.any(Function))
     expect(opts.sub.on).toHaveBeenCalledWith('pmessage', expect.any(Function))
@@ -38,7 +25,7 @@ describe('IORedisPubSubEngine', () => {
       }
       const err = new Error('boom')
       opts.pub.publish.mockRejectedValue(err)
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       expect(pubsub.publish('triggerName', { foo: 10 })).rejects.toThrow(err)
     })
 
@@ -48,7 +35,7 @@ describe('IORedisPubSubEngine', () => {
         pub: createRedisMock(),
         sub: createRedisMock(),
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const payload = { foo: 10 }
       await pubsub.publish(triggerName, payload)
@@ -72,7 +59,7 @@ describe('IORedisPubSubEngine', () => {
           stringify: jest.fn().mockReturnValue('STRING'),
         },
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const payload = { foo: 10 }
       await pubsub.publish(triggerName, payload)
@@ -94,7 +81,7 @@ describe('IORedisPubSubEngine', () => {
         pub: createRedisMock(),
         sub: createRedisMock(),
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const onMessage = jest.fn()
       const err = new Error('boom')
@@ -109,7 +96,7 @@ describe('IORedisPubSubEngine', () => {
         pub: createRedisMock(),
         sub: createRedisMock(),
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const onMessage = jest.fn()
       await pubsub.subscribe(triggerName, onMessage)
@@ -121,7 +108,7 @@ describe('IORedisPubSubEngine', () => {
         pub: createRedisMock(),
         sub: createRedisMock(),
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const onMessage = jest.fn()
       await pubsub.subscribe(triggerName, onMessage, { pattern: true })
@@ -133,7 +120,7 @@ describe('IORedisPubSubEngine', () => {
         pub: createRedisMock(),
         sub: createRedisMock(),
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const onMessage = jest.fn()
       const order = []
@@ -172,7 +159,7 @@ describe('IORedisPubSubEngine', () => {
           error: jest.fn(),
         },
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       await expect(pubsub.unsubscribe(999)).resolves.toBeUndefined()
       expect(opts.logger.warn.mock.calls).toMatchInlineSnapshot(`
         Array [
@@ -191,7 +178,7 @@ describe('IORedisPubSubEngine', () => {
         pub: createRedisMock(),
         sub: createRedisMock(),
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
 
       const triggerName = 'evt'
       const subId = await pubsub.subscribe(triggerName, () => {})
@@ -206,7 +193,7 @@ describe('IORedisPubSubEngine', () => {
         pub: createRedisMock(),
         sub: createRedisMock(),
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
 
       const triggerName = 'pattern'
       const subId = await pubsub.subscribe(triggerName, () => {}, {
@@ -228,7 +215,7 @@ describe('IORedisPubSubEngine', () => {
           error: jest.fn(),
         },
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       // subscribe
       const triggerName = 'triggerName'
       const subId = await pubsub.subscribe(triggerName, () => {})
@@ -266,7 +253,7 @@ describe('IORedisPubSubEngine', () => {
         pub: createRedisMock(),
         sub: createRedisMock(),
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const onMessage = jest.fn()
       await pubsub.subscribe(triggerName, onMessage)
@@ -291,7 +278,7 @@ describe('IORedisPubSubEngine', () => {
           throw new Error('parse error')
         },
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const onMessage = jest.fn()
       await pubsub.subscribe(triggerName, onMessage)
@@ -309,18 +296,6 @@ describe('IORedisPubSubEngine', () => {
               "err": [PayloadParseError: message payload parse error],
             },
           ],
-          Array [
-            "message payload parse error",
-            Object {
-              "err": [PayloadParseError: message payload parse error],
-            },
-          ],
-          Array [
-            "message payload parse error",
-            Object {
-              "err": [PayloadParseError: message payload parse error],
-            },
-          ],
         ]
       `)
     })
@@ -331,7 +306,7 @@ describe('IORedisPubSubEngine', () => {
         pub: createRedisMock(),
         sub: createRedisMock(),
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const onMessage = jest.fn()
       await pubsub.subscribe(triggerName, onMessage, { pattern: true })
@@ -356,7 +331,7 @@ describe('IORedisPubSubEngine', () => {
           throw new Error('parse error')
         },
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const onMessage = jest.fn()
       await pubsub.subscribe(triggerName, onMessage, { pattern: true })
@@ -380,12 +355,6 @@ describe('IORedisPubSubEngine', () => {
               "err": [PayloadParseError: message payload parse error],
             },
           ],
-          Array [
-            "message payload parse error",
-            Object {
-              "err": [PayloadParseError: message payload parse error],
-            },
-          ],
         ]
       `)
     })
@@ -396,7 +365,7 @@ describe('IORedisPubSubEngine', () => {
         pub: createRedisMock(),
         sub: createRedisMock(),
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const onMessage = jest.fn()
       const subId = await pubsub.subscribe(triggerName, onMessage)
@@ -414,7 +383,7 @@ describe('IORedisPubSubEngine', () => {
         pub: createRedisMock(),
         sub: createRedisMock(),
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const onMessage = jest.fn()
       const subId = await pubsub.subscribe(triggerName, onMessage, {
@@ -435,7 +404,7 @@ describe('IORedisPubSubEngine', () => {
         pub: createRedisMock(),
         sub: createRedisMock(),
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const onMessage = jest.fn()
       const subId = await pubsub.subscribe(triggerName, onMessage)
@@ -453,7 +422,7 @@ describe('IORedisPubSubEngine', () => {
         pub: createRedisMock(),
         sub: createRedisMock(),
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const onMessage1 = jest.fn()
       const onMessage2 = jest.fn()
@@ -481,7 +450,7 @@ describe('IORedisPubSubEngine', () => {
           error: jest.fn(),
         },
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       // subscribe
       const triggerName1 = 'triggerName1'
       const triggerName2 = 'triggerName2'
@@ -537,7 +506,7 @@ describe('IORedisPubSubEngine', () => {
         sub: createRedisMock(),
         logger: console,
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       // subscribe
       const triggerName = 'triggerName'
       // unsubscribe multiple times
@@ -566,16 +535,15 @@ describe('IORedisPubSubEngine', () => {
           order.push('index 3')
         })(),
       ])
-      expect(opts.sub.subscribe).toHaveBeenCalledTimes(2)
+      expect(opts.sub.subscribe).toHaveBeenCalledTimes(1)
       expect(opts.sub.subscribe).toHaveBeenCalledWith(triggerName)
-      expect(opts.sub.unsubscribe).toHaveBeenCalledTimes(2)
-      expect(opts.sub.unsubscribe).toHaveBeenCalledWith(triggerName)
+      expect(opts.sub.unsubscribe).toHaveBeenCalledTimes(0)
       expect(order).toMatchInlineSnapshot(`
         Array [
-          "index 0",
           "index 1",
-          "index 2",
           "index 3",
+          "index 0",
+          "index 2",
         ]
       `)
     })
@@ -587,7 +555,7 @@ describe('IORedisPubSubEngine', () => {
         sub: createRedisMock(),
         logger: console,
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       // subscribe
       const triggerName = 'triggerName'
       // unsubscribe multiple times
@@ -636,7 +604,7 @@ describe('IORedisPubSubEngine', () => {
         sub: createRedisMock(),
         logger: console,
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const iterable = pubsub.asyncIterator<PayloadType>(triggerName)
       const p = iterable.next()
@@ -652,7 +620,7 @@ describe('IORedisPubSubEngine', () => {
         sub: createRedisMock(),
         logger: console,
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const iterable = pubsub.asyncIterator<PayloadType>(triggerName)
       setTimeout(() => {
@@ -678,7 +646,7 @@ describe('IORedisPubSubEngine', () => {
         sub: createRedisMock(),
         logger: console,
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const iterable = pubsub.asyncIterator<PayloadType>(triggerName)
       setTimeout(() => {
@@ -723,7 +691,7 @@ describe('IORedisPubSubEngine', () => {
         sub: createRedisMock(),
         logger: console,
       }
-      const pubsub = new IORedisPubSubEngine<PayloadType>(opts as any)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName1 = 'triggerName1'
       const triggerName2 = 'triggerName2'
       const iterable = pubsub.asyncIterator<PayloadType>([

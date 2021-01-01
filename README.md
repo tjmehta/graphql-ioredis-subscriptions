@@ -14,22 +14,22 @@ npm i --save graphql-ioredis-subscriptions
 
 ```js
 // esm
-import IORedisPubSubEngine from 'graphql-ioredis-subscriptions`
+import RedisPubSubEngine from 'graphql-ioredis-subscriptions`
 // commonjs
-const IORedisPubSubEngine = require('graphql-ioredis-subscriptions')
+const RedisPubSubEngine = require('graphql-ioredis-subscriptions')
 ```
 
 #### Use it with Type-GraphQL and ApolloServer
 
 ```js
-import IORedisPubSubEngine from 'graphql-ioredis-subscriptions`
+import RedisPubSubEngine from 'graphql-ioredis-subscriptions`
 import { ApolloServer } from 'apollo-server'
 import { buildSchema } from 'type-graphql'
 import IORedis from 'ioredis'
 
 const schema = buildSchema({
   //...
-  pubSub: new IORedisPubSubEngine({
+  pubSub: new RedisPubSubEngine({
     /* required */
     pub: new IORedis(),
     sub: new IORedis(),
