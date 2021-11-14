@@ -639,7 +639,7 @@ describe('RedisPubSubEngine', () => {
       }
     })
 
-    it('should yield payloads for a triggerName', async () => {
+    it.only('should yield payloads for a triggerName', async () => {
       // create pub sub
       const opts = {
         pub: createRedisMock(),
