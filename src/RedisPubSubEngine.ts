@@ -70,9 +70,13 @@ export class RedisPubSubEngine<T> extends EventEmitter implements PubSubEngine {
         payload = this.parser.parse(payloadStr)
       } catch (err) {
         this.logger.error('message payload parse error', {
-          err: PayloadParseError.wrap(err, 'message payload parse error', {
-            payloadStr,
-          }),
+          err: PayloadParseError.wrap(
+            err as Error,
+            'message payload parse error',
+            {
+              payloadStr,
+            },
+          ),
         })
         return
       }
@@ -86,9 +90,13 @@ export class RedisPubSubEngine<T> extends EventEmitter implements PubSubEngine {
         payload = this.parser.parse(payloadStr)
       } catch (err) {
         this.logger.error('message payload parse error', {
-          err: PayloadParseError.wrap(err, 'message payload parse error', {
-            payloadStr,
-          }),
+          err: PayloadParseError.wrap(
+            err as Error,
+            'message payload parse error',
+            {
+              payloadStr,
+            },
+          ),
         })
         return
       }
@@ -179,7 +187,7 @@ export class RedisPubSubEngine<T> extends EventEmitter implements PubSubEngine {
           yield raceAbort((signal) => pullQueue.pull(signal))
         }
       } catch (err) {
-        if (err.name === 'AbortError') return
+        if ((err as any).name === 'AbortError') return
         throw err
       } finally {
         subIds?.forEach((id) => self.unsubscribe(id))

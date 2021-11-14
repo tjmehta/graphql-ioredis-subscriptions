@@ -4,8 +4,8 @@ import AbstractStartable, {
   StopOptsType,
   state,
 } from 'abstract-startable'
+import DoublyLinkedList, { DoublyNode } from 'doubly'
 
-import { DoublyLinkedList } from './DoublyLinkedList'
 import IORedis from 'ioredis'
 import { ignoreName } from 'ignore-errors'
 import timeout from 'timeout-then'
@@ -39,10 +39,22 @@ export class RedisSubscription extends AbstractStartable {
   async addListener(
     cb: <T>(payload: T) => unknown,
   ): Promise<() => Promise<void>> {
-    const node = this.listeners.push(cb)
-    // ensure subscription is "started"
-    await this.start()
+    let removed = false
+    this.listeners.push(cb)
+    const node = this.listeners.tail as DoublyNode<ListenerType>
+    try {
+      // ensure subscription is "started"
+      await this.start()
+    } catch (err) {
+      // subscription failed remove listener
+      removed = true
+      this.listeners.deleteNode(node)
+      throw err
+    }
+
     const removeListener = async () => {
+      if (removed) return
+      removed = true
       this.listeners.deleteNode(node)
       if (this.listeners.size === 0) {
         this.stop().catch(ignoreName('AbortError'))
