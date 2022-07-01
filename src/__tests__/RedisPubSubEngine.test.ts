@@ -123,7 +123,7 @@ describe('RedisPubSubEngine', () => {
       const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
       const triggerName = 'triggerName'
       const onMessage = jest.fn()
-      const order = []
+      const order: string[] = []
       await Promise.all([
         (async () => {
           // this would finish second if there wasn't a queue
@@ -220,7 +220,7 @@ describe('RedisPubSubEngine', () => {
       const triggerName = 'triggerName'
       const subId = await pubsub.subscribe(triggerName, () => {})
       // unsubscribe multiple times
-      const order = []
+      const order: string[] = []
       await Promise.all([
         (async () => {
           // this would finish second if there wasn't a queue
@@ -458,7 +458,7 @@ describe('RedisPubSubEngine', () => {
       const sub1Id2 = await pubsub.subscribe(triggerName1, () => {})
       const sub2Id1 = await pubsub.subscribe(triggerName2, () => {})
       // unsubscribe multiple times
-      const order = []
+      const order: string[] = []
       await Promise.all([
         (async () => {
           opts.sub.unsubscribe.mockReturnValue(timeout(25))
@@ -512,7 +512,7 @@ describe('RedisPubSubEngine', () => {
       // unsubscribe multiple times
       let subId1 = 1
       let subId2 = 2
-      const order = []
+      const order: string[] = []
       await Promise.all([
         (async () => {
           opts.sub.subscribe.mockReturnValue(timeout(20))
@@ -559,7 +559,7 @@ describe('RedisPubSubEngine', () => {
       // subscribe
       const triggerName = 'triggerName'
       // unsubscribe multiple times
-      const order = []
+      const order: string[] = []
       await Promise.all([
         (async () => {
           opts.sub.subscribe.mockReturnValue(timeout(20))
@@ -608,7 +608,7 @@ describe('RedisPubSubEngine', () => {
       const triggerName = 'triggerName'
       const iterable = pubsub.asyncIterator<PayloadType>(triggerName)
       const p = iterable.next()
-      await iterable.return()
+      await iterable.return?.()
       await p
       expect(iterable.done).toBe(true)
     })
@@ -631,7 +631,7 @@ describe('RedisPubSubEngine', () => {
         opts.sub.emit('message', triggerName, JSON.stringify({ foo: 'one' }))
         iterable.next()
         opts.sub.emit('message', triggerName, JSON.stringify({ foo: 'one' }))
-        iterable.return()
+        iterable.return?.()
         opts.sub.emit('message', triggerName, JSON.stringify({ foo: 'one' }))
       }, 100)
       for await (let payload of iterable) {
@@ -655,11 +655,11 @@ describe('RedisPubSubEngine', () => {
         opts.sub.emit('message', triggerName, JSON.stringify({ foo: 'thr' }))
         setTimeout(() => {
           opts.sub.emit('message', triggerName, JSON.stringify({ foo: 'for' }))
-          iterable.return()
+          iterable.return?.()
           opts.sub.emit('message', triggerName, JSON.stringify({ foo: 'fiv' }))
         }, 10)
       }, 10)
-      const payloads = []
+      const payloads: Array<PayloadType | string> = []
       try {
         for await (let payload of iterable) {
           payloads.push(payload)
@@ -704,11 +704,11 @@ describe('RedisPubSubEngine', () => {
         opts.sub.emit('message', triggerName1, JSON.stringify({ foo: 'thr' }))
         setTimeout(() => {
           opts.sub.emit('message', triggerName2, JSON.stringify({ foo: 'for' }))
-          iterable.return()
+          iterable.return?.()
           opts.sub.emit('message', triggerName1, JSON.stringify({ foo: 'fiv' }))
         }, 10)
       }, 10)
-      const payloads = []
+      const payloads: Array<PayloadType | string> = []
       try {
         for await (let payload of iterable) {
           payloads.push(payload)
