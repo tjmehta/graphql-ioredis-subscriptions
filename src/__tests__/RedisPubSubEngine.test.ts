@@ -1,3 +1,4 @@
+import { AbortController } from 'abort-controller'
 import RedisPubSubEngine from '../index'
 import createRedisMock from './test_utils/createRedisMock'
 import timeout from 'timeout-then'
@@ -598,7 +599,46 @@ describe('RedisPubSubEngine', () => {
   })
 
   describe('asyncIterator', () => {
-    it('should unsubscribe even if returned immediately', async () => {
+    it('should not subscribe if iterator is returned immediately', async () => {
+      const opts = {
+        pub: createRedisMock(),
+        sub: createRedisMock(),
+        logger: console,
+      }
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
+      const triggerName = 'triggerName'
+      const iterable = pubsub.asyncIterator<PayloadType>(triggerName)
+      await iterable.return?.()
+      const p = iterable.next()
+      await p
+      expect(iterable.done).toBe(true)
+      expect(opts.sub.subscribe).toHaveBeenCalledTimes(0)
+      expect(opts.sub.unsubscribe).toHaveBeenCalledTimes(0)
+    })
+
+    it('should not subscribe if signal is aborted', async () => {
+      const opts = {
+        pub: createRedisMock(),
+        sub: createRedisMock(),
+        logger: console,
+      }
+      const controller = new AbortController()
+      controller.abort()
+      console.log(controller.signal.aborted)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
+      const triggerName = 'triggerName'
+      const iterable = pubsub.asyncIterator<PayloadType>(
+        triggerName,
+        controller.signal as any,
+      )
+      const p = iterable.next()
+      await p
+      expect(iterable.done).toBe(true)
+      expect(opts.sub.subscribe).toHaveBeenCalledTimes(0)
+      expect(opts.sub.unsubscribe).toHaveBeenCalledTimes(0)
+    })
+
+    it('should unsubscribe even if returned immediately after first next', async () => {
       const opts = {
         pub: createRedisMock(),
         sub: createRedisMock(),
@@ -608,9 +648,34 @@ describe('RedisPubSubEngine', () => {
       const triggerName = 'triggerName'
       const iterable = pubsub.asyncIterator<PayloadType>(triggerName)
       const p = iterable.next()
+      await new Promise((resolve) => setTimeout(resolve, 0)) // so it hits the while
       await iterable.return?.()
       await p
       expect(iterable.done).toBe(true)
+      expect(opts.sub.unsubscribe).toHaveBeenCalledTimes(1)
+      expect(opts.sub.unsubscribe).toHaveBeenCalledWith(triggerName)
+    })
+
+    it('should unsubscribe even if aborted immediately after first next', async () => {
+      const opts = {
+        pub: createRedisMock(),
+        sub: createRedisMock(),
+        logger: console,
+      }
+      const controller = new AbortController()
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
+      const triggerName = 'triggerName'
+      const iterable = pubsub.asyncIterator<PayloadType>(
+        triggerName,
+        controller.signal as any,
+      )
+      const p = iterable.next()
+      await new Promise((resolve) => setTimeout(resolve, 0)) // so it hits the while
+      controller.abort()
+      await p
+      expect(iterable.done).toBe(true)
+      expect(opts.sub.unsubscribe).toHaveBeenCalledTimes(1)
+      expect(opts.sub.unsubscribe).toHaveBeenCalledWith(triggerName)
     })
 
     it('should not get stuck on yielding same value forever', async () => {
