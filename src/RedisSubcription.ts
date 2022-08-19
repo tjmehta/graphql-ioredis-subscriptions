@@ -6,9 +6,10 @@ import AbstractStartable, {
 } from 'abstract-startable'
 import DoublyLinkedList, { DoublyNode } from 'doubly'
 
+import AbortController from 'fast-abort-controller'
 import IORedis from 'ioredis'
 import { ignoreName } from 'ignore-errors'
-import timeout from 'timeout-then'
+import timeout from 'abortable-timeout'
 
 type OptsType = {
   logger?: LoggerType
@@ -23,6 +24,7 @@ export class RedisSubscription extends AbstractStartable {
   protected opts: OptsType
   protected logger: LoggerType
   protected stopDelayPromise: ReturnType<typeof timeout> | null
+  protected stopDelayController: AbortController | null
 
   forceStopping: boolean
   listeners: DoublyLinkedList<ListenerType>
@@ -31,6 +33,7 @@ export class RedisSubscription extends AbstractStartable {
     super()
     this.opts = opts
     this.stopDelayPromise = null
+    this.stopDelayController = null
     this.forceStopping = false
     this.logger = this.opts.logger ?? console
     this.listeners = new DoublyLinkedList()
@@ -70,8 +73,8 @@ export class RedisSubscription extends AbstractStartable {
       if (this.forceStopping) {
         throw new AbortError('start aborted, subscription is stopping (forced)')
       }
-      if (this.stopDelayPromise) {
-        this.stopDelayPromise.clear()
+      if (this.stopDelayController) {
+        this.stopDelayController.abort()
         delete this.stopPromise
         return
       }
@@ -108,14 +111,25 @@ export class RedisSubscription extends AbstractStartable {
       })
     }
 
-    if (this.opts.stopDelayDuration != null) {
-      this.stopDelayPromise = timeout(this.opts.stopDelayDuration)
-      await this.stopDelayPromise.finally(() => {
-        this.stopDelayPromise = null
-      })
+    if (this.opts.stopDelayDuration == null) {
+      return this.__stop()
     }
 
-    return this.__stop()
+    const controller = (this.stopDelayController = new AbortController())
+    this.stopDelayPromise = timeout(
+      this.opts.stopDelayDuration,
+      controller.signal,
+    )
+    try {
+      await this.stopDelayPromise
+      this.stopDelayController = null
+      this.stopDelayPromise = null
+      return this.__stop()
+    } catch (err) {
+      // aborted
+      this.stopDelayController = null
+      this.stopDelayPromise = null
+    }
   }
 
   protected async __stop() {

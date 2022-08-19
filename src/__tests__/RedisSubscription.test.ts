@@ -1,6 +1,6 @@
 import { RedisSubscription } from './../RedisSubcription'
 import createRedisMock from './test_utils/createRedisMock'
-import jestConfig from '../../jest.config'
+import { ignoreName } from 'ignore-errors'
 
 describe('RedisSubscription', () => {
   describe('start', () => {
@@ -61,13 +61,9 @@ describe('RedisSubscription', () => {
       await subscription.start()
       subscription.stop()
       // @ts-ignore
-      expect(subscription.stopDelayPromise).toMatchInlineSnapshot(`
-        Promise {
-          "clear": [Function],
-        }
-      `)
+      expect(subscription.stopDelayPromise).toMatchInlineSnapshot(`Promise {}`)
       // @ts-ignore
-      await subscription.stopDelayPromise
+      await subscription.stopDelayPromise.catch(ignoreName('AbortError'))
       expect(subscription.state).toMatchInlineSnapshot(`"STOPPING"`)
       const startPromise1 = subscription.start()
       const startPromise2 = subscription.start()

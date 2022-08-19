@@ -1,9 +1,31 @@
+import {
+  RedisPatternSubscription,
+  RedisSubscription,
+} from '../RedisSubcription'
+
 import { AbortController } from 'abort-controller'
 import RedisPubSubEngine from '../index'
 import createRedisMock from './test_utils/createRedisMock'
-import timeout from 'timeout-then'
+import timeout from 'abortable-timeout'
 
 type PayloadType = { foo: number }
+
+expect.addSnapshotSerializer({
+  test: (val) => val instanceof RedisPatternSubscription,
+  print: (val) => {
+    return `RedisPatternSubscription(${
+      (val as RedisPatternSubscription).listeners.size
+    })`
+  },
+})
+expect.addSnapshotSerializer({
+  test: (val) =>
+    val instanceof RedisSubscription &&
+    !(val instanceof RedisPatternSubscription),
+  print: (val) => {
+    return `RedisSubscription(${(val as RedisSubscription).listeners.size})`
+  },
+})
 
 describe('RedisPubSubEngine', () => {
   it('should create an instance', () => {
@@ -128,13 +150,13 @@ describe('RedisPubSubEngine', () => {
       await Promise.all([
         (async () => {
           // this would finish second if there wasn't a queue
-          opts.sub.subscribe.mockReturnValue(timeout(100))
+          opts.sub.subscribe.mockReturnValue(timeout(100, null))
           await pubsub.subscribe(triggerName, onMessage)
           order.push('index 0')
         })(),
         (async () => {
           // this would finish first if there wasn't a queue
-          opts.sub.subscribe.mockReturnValue(timeout(50))
+          opts.sub.subscribe.mockReturnValue(timeout(50, null))
           await pubsub.subscribe(triggerName, onMessage)
           order.push('index 1')
         })(),
@@ -172,6 +194,12 @@ describe('RedisPubSubEngine', () => {
           ],
         ]
       `)
+      expect(pubsub.__debugSubState()).toMatchInlineSnapshot(`
+        Object {
+          "subsByPattern": Object {},
+          "subsByTrigger": Object {},
+        }
+      `)
     })
 
     it('should unsubscribe from subscribed event name', async () => {
@@ -200,10 +228,24 @@ describe('RedisPubSubEngine', () => {
       const subId = await pubsub.subscribe(triggerName, () => {}, {
         pattern: true,
       })
-      await expect(pubsub.unsubscribe(subId)).resolves.toBeUndefined()
+      expect(pubsub.__debugSubState()).toMatchInlineSnapshot(`
+        Object {
+          "subsByPattern": Object {
+            "pattern": RedisPatternSubscription(1),
+          },
+          "subsByTrigger": Object {},
+        }
+      `)
+      await pubsub.unsubscribe(subId)
       expect(opts.sub.punsubscribe).toHaveBeenCalledTimes(1)
       expect(opts.sub.punsubscribe).toHaveBeenCalledWith(triggerName)
       expect(opts.sub.unsubscribe).not.toHaveBeenCalled()
+      expect(pubsub.__debugSubState()).toMatchInlineSnapshot(`
+        Object {
+          "subsByPattern": Object {},
+          "subsByTrigger": Object {},
+        }
+      `)
     })
 
     it('should unsubscribe from the same event names one-by-one in-order', async () => {
@@ -220,20 +262,43 @@ describe('RedisPubSubEngine', () => {
       // subscribe
       const triggerName = 'triggerName'
       const subId = await pubsub.subscribe(triggerName, () => {})
+      expect(pubsub.__debugSubState()).toMatchInlineSnapshot(`
+        Object {
+          "subsByPattern": Object {},
+          "subsByTrigger": Object {
+            "triggerName": RedisSubscription(1),
+          },
+        }
+      `)
       // unsubscribe multiple times
       const order: string[] = []
       await Promise.all([
         (async () => {
           // this would finish second if there wasn't a queue
-          opts.sub.unsubscribe.mockReturnValue(timeout(100))
+          opts.sub.unsubscribe.mockReturnValue(timeout(100, null))
           await pubsub.unsubscribe(subId)
           order.push('index 0')
+          expect(pubsub.__debugSubState()).toMatchInlineSnapshot(`
+            Object {
+              "subsByPattern": Object {},
+              "subsByTrigger": Object {},
+            }
+          `)
         })(),
         (async () => {
           // this would finish first if there wasn't a queue
-          opts.sub.unsubscribe.mockReturnValue(timeout(50))
+          opts.sub.unsubscribe.mockReturnValue(timeout(50, null))
           await pubsub.unsubscribe(subId)
           order.push('index 1')
+          // this finishes first while "removeListener" is still running in the background
+          expect(pubsub.__debugSubState()).toMatchInlineSnapshot(`
+            Object {
+              "subsByPattern": Object {},
+              "subsByTrigger": Object {
+                "triggerName": RedisSubscription(0),
+              },
+            }
+          `)
         })(),
       ])
       expect(opts.sub.unsubscribe).toHaveBeenCalledTimes(1)
@@ -243,6 +308,12 @@ describe('RedisPubSubEngine', () => {
           "index 1",
           "index 0",
         ]
+      `)
+      expect(pubsub.__debugSubState()).toMatchInlineSnapshot(`
+        Object {
+          "subsByPattern": Object {},
+          "subsByTrigger": Object {},
+        }
       `)
     })
   })
@@ -462,24 +533,24 @@ describe('RedisPubSubEngine', () => {
       const order: string[] = []
       await Promise.all([
         (async () => {
-          opts.sub.unsubscribe.mockReturnValue(timeout(25))
+          opts.sub.unsubscribe.mockReturnValue(timeout(25, null))
           await pubsub.unsubscribe(sub1Id1)
           order.push('index 1')
         })(),
         (async () => {
-          opts.sub.unsubscribe.mockReturnValue(timeout(25))
+          opts.sub.unsubscribe.mockReturnValue(timeout(25, null))
           await pubsub.unsubscribe(sub1Id2)
           // get's queued behind above
           order.push('index 2')
         })(),
         (async () => {
-          opts.sub.unsubscribe.mockReturnValue(timeout(60))
+          opts.sub.unsubscribe.mockReturnValue(timeout(60, null))
           await pubsub.unsubscribe(sub2Id1)
           // own queue, but longest timeout
           order.push('index 3')
         })(),
         (async () => {
-          opts.sub.unsubscribe.mockReturnValue(timeout(50)) // not used
+          opts.sub.unsubscribe.mockReturnValue(timeout(50, null)) // not used
           await pubsub.unsubscribe(sub2Id1)
           // finishes immediately bc already unsubscribed
           order.push('index 0')
@@ -516,22 +587,22 @@ describe('RedisPubSubEngine', () => {
       const order: string[] = []
       await Promise.all([
         (async () => {
-          opts.sub.subscribe.mockReturnValue(timeout(20))
+          opts.sub.subscribe.mockReturnValue(timeout(20, null))
           await pubsub.subscribe(triggerName, () => {})
           order.push('index 0')
         })(),
         (async () => {
-          opts.sub.unsubscribe.mockReturnValue(timeout(20))
+          opts.sub.unsubscribe.mockReturnValue(timeout(20, null))
           await pubsub.unsubscribe(subId1)
           order.push('index 1')
         })(),
         (async () => {
-          opts.sub.subscribe.mockReturnValue(timeout(20))
+          opts.sub.subscribe.mockReturnValue(timeout(20, null))
           await pubsub.subscribe(triggerName, () => {})
           order.push('index 2')
         })(),
         (async () => {
-          opts.sub.unsubscribe.mockReturnValue(timeout(20))
+          opts.sub.unsubscribe.mockReturnValue(timeout(20, null))
           await pubsub.unsubscribe(subId2)
           order.push('index 3')
         })(),
@@ -563,20 +634,20 @@ describe('RedisPubSubEngine', () => {
       const order: string[] = []
       await Promise.all([
         (async () => {
-          opts.sub.subscribe.mockReturnValue(timeout(20))
+          opts.sub.subscribe.mockReturnValue(timeout(20, null))
           const subId1 = await pubsub.subscribe(triggerName, () => {})
           order.push('index 0')
-          opts.sub.unsubscribe.mockReturnValue(timeout(20))
+          opts.sub.unsubscribe.mockReturnValue(timeout(20, null))
           await Promise.all([
             (async () => {
               await pubsub.unsubscribe(subId1)
               order.push('index 1')
-              opts.sub.subscribe.mockReturnValue(timeout(30))
+              opts.sub.subscribe.mockReturnValue(timeout(30, null))
             })(),
             (async () => {
               const subId2 = await pubsub.subscribe(triggerName, () => {})
               order.push('index 2')
-              opts.sub.unsubscribe.mockReturnValue(timeout(20))
+              opts.sub.unsubscribe.mockReturnValue(timeout(20, null))
               await pubsub.unsubscribe(subId2)
               order.push('index 3')
             })(),
@@ -599,6 +670,24 @@ describe('RedisPubSubEngine', () => {
   })
 
   describe('asyncIterator', () => {
+    it('should throw subscription error', async () => {
+      const opts = {
+        pub: createRedisMock(),
+        sub: createRedisMock(),
+        logger: console,
+      }
+      const err = new Error('subscription error')
+      opts.sub.subscribe.mockRejectedValue(err)
+      const pubsub = new RedisPubSubEngine<PayloadType>(opts as any)
+      const triggerName = 'triggerName'
+      const iterable = pubsub.asyncIterator<PayloadType>(triggerName)
+      const p = iterable.next()
+      await expect(p).rejects.toBe(err)
+      expect(iterable.done).toBe(true)
+      expect(opts.sub.subscribe).toHaveBeenCalledTimes(1)
+      expect(opts.sub.unsubscribe).toHaveBeenCalledTimes(0)
+    })
+
     it('should not subscribe if iterator is returned immediately', async () => {
       const opts = {
         pub: createRedisMock(),
@@ -648,7 +737,7 @@ describe('RedisPubSubEngine', () => {
       const triggerName = 'triggerName'
       const iterable = pubsub.asyncIterator<PayloadType>(triggerName)
       const p = iterable.next()
-      await new Promise((resolve) => setTimeout(resolve, 0)) // so it hits the while
+      await new Promise((resolve) => setTimeout(resolve, null, 0)) // so it hits the while
       await iterable.return?.()
       await p
       expect(iterable.done).toBe(true)
@@ -670,7 +759,7 @@ describe('RedisPubSubEngine', () => {
         controller.signal as any,
       )
       const p = iterable.next()
-      await new Promise((resolve) => setTimeout(resolve, 0)) // so it hits the while
+      await new Promise((resolve) => setTimeout(resolve, null, 0)) // so it hits the while
       controller.abort()
       await p
       expect(iterable.done).toBe(true)

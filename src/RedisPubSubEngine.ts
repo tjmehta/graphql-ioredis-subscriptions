@@ -10,6 +10,7 @@ import IORedis from 'ioredis'
 import { PubSubEngine } from 'graphql-subscriptions'
 import PullQueue from 'promise-pull-queue'
 import abortable from 'abortable-generator'
+import { state } from 'abstract-startable'
 
 export class AbortError extends BaseError<{}> {}
 export class PayloadParseError extends BaseError<{ payloadStr: string }> {}
@@ -24,6 +25,7 @@ export class UnsubscribeError extends BaseError<{
 export type LoggerType = {
   warn(...data: any[]): any
   error(...data: any[]): any
+  debug(...data: any[]): any
 }
 
 export interface OptsType<T> {
@@ -37,16 +39,23 @@ export interface OptsType<T> {
   sub: IORedis.Redis
 }
 
+type SubsByTriggerType = Record<string, RedisSubscription | undefined>
+type SubsByPatternType = Record<string, RedisPatternSubscription | undefined>
+
 export class RedisPubSubEngine<T> extends EventEmitter implements PubSubEngine {
   private opts: OptsType<T>
   private logger: NonNullable<OptsType<T>['logger']>
   private parser: NonNullable<OptsType<T>['parser']>
   // subscription state
-  private subsByTrigger: Record<string, RedisSubscription | undefined>
-  private subsByPattern: Record<string, RedisPatternSubscription | undefined>
+  private subsByTrigger: SubsByTriggerType
+  private subsByPattern: SubsByPatternType
   private removeListenerById: Record<
     number,
-    () => Promise<void> /*removeListener*/
+    {
+      pattern: boolean
+      triggerName: string
+      removeListener: () => Promise<void>
+    }
   >
 
   constructor(opts: OptsType<T>) {
@@ -146,19 +155,37 @@ export class RedisPubSubEngine<T> extends EventEmitter implements PubSubEngine {
     }
 
     const id = this.nextId()
-    this.removeListenerById[id] = removeListener
+    this.removeListenerById[id] = {
+      pattern,
+      triggerName,
+      removeListener,
+    }
 
     return id
   }
 
   async unsubscribe(id: number): Promise<void> {
-    const removeListener = this.removeListenerById[id]
+    const { removeListener, triggerName, pattern } =
+      this.removeListenerById[id] ?? {}
     if (removeListener == null) {
       this.logger.warn('cannot unsubscribe from unknown subscription', { id })
       return
     }
     delete this.removeListenerById[id]
-    return removeListener()
+    try {
+      await removeListener()
+    } finally {
+      const sub = pattern
+        ? this.subsByPattern[triggerName]
+        : this.subsByTrigger[triggerName]
+      if (sub?.state == state.STOPPED) {
+        if (pattern) {
+          delete this.subsByPattern[triggerName]
+        } else {
+          delete this.subsByTrigger[triggerName]
+        }
+      }
+    }
   }
 
   asyncIterator<TT = T>(
@@ -193,5 +220,15 @@ export class RedisPubSubEngine<T> extends EventEmitter implements PubSubEngine {
         subIds?.forEach((id) => self.unsubscribe(id))
       }
     })(signal)
+  }
+
+  __debugSubState(): {
+    subsByTrigger: SubsByTriggerType
+    subsByPattern: SubsByPatternType
+  } {
+    return {
+      subsByTrigger: this.subsByTrigger,
+      subsByPattern: this.subsByPattern,
+    }
   }
 }
