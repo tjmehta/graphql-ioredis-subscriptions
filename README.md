@@ -14,7 +14,7 @@ npm i --save graphql-ioredis-subscriptions
 
 ```js
 // esm
-import RedisPubSubEngine from 'graphql-ioredis-subscriptions`
+import RedisPubSubEngine from 'graphql-ioredis-subscriptions'
 // commonjs
 const RedisPubSubEngine = require('graphql-ioredis-subscriptions')
 ```
