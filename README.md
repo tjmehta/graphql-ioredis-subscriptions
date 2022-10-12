@@ -22,7 +22,7 @@ const RedisPubSubEngine = require('graphql-ioredis-subscriptions')
 #### Use it with Type-GraphQL and ApolloServer
 
 ```js
-import RedisPubSubEngine from 'graphql-ioredis-subscriptions`
+import RedisPubSubEngine from 'graphql-ioredis-subscriptions'
 import { ApolloServer } from 'apollo-server'
 import { buildSchema } from 'type-graphql'
 import IORedis from 'ioredis'
